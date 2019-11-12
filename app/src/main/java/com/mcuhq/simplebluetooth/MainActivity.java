@@ -44,8 +44,10 @@ public class MainActivity extends AppCompatActivity {
     // GUI Components
     private TextView item;
     private TextView txtStatus;
-    private Button btnFile;
+    private TextView txtBPM;
     private TextView txtBuffer;
+
+    private Button btnFile;
     private Button btnOn;
     private Button btnOff;
     private Button btn_pair;
@@ -55,7 +57,18 @@ public class MainActivity extends AppCompatActivity {
     private ArrayAdapter<String> mBTArrayAdapter;
     private ListView mDevicesListView;
     private CheckBox checkBox_noti;
+    //Data process
     String sdata = ""; // Container data from hc06
+    Double Fs = 12.0;
+    Double Ts = 1 / Fs;
+    int check_first = 1;
+    float[] ibi = new float[4];
+    float[] pulse_check = new float[3];
+    float IBI = 10;
+    float IBI_total = 10;
+    int time = 0;
+    int lastTimeBeat = 0;
+    int N = 0;
 
     private final String TAG = MainActivity.class.getSimpleName();
     private Handler mHandler; // Our main handler that will receive callback notifications
@@ -85,6 +98,7 @@ public class MainActivity extends AppCompatActivity {
         btnSeek = (Button)findViewById(R.id.button_seek);
         btn_pair = (Button)findViewById(R.id.button_pair);
         checkBox_noti = (CheckBox)findViewById(R.id.checkBox_notifi);
+        txtBPM = (TextView)findViewById(R.id.textBPM);
 
         mBTArrayAdapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1){
             @Override
@@ -115,17 +129,54 @@ public class MainActivity extends AppCompatActivity {
 
         mHandler = new Handler(){
             public void handleMessage(android.os.Message msg){
-                if(msg.what == MESSAGE_READ){
+                if(msg.what == MESSAGE_READ)
+                {
                     String readMessage = null;
                     try {
                         readMessage = new String((byte[]) msg.obj, "UTF-8");
                     } catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
                     }
-                    txtBuffer.setText(readMessage);
+                    //txtBuffer.setText(readMessage);
                     //int a = Integer.valueOf(readMessage);
                     //for(int i=1; i<1000; i++)
-                        sdata += readMessage+"\n";
+
+                    time++;
+                    if(time > 4000) time = 0; // reset avoid huge value
+                    if(check_first == 1) {
+                        pulse_check[0]=0;
+                        pulse_check[1]=0;
+                        pulse_check[2]=0;
+                        for (int i = 0; i < ibi.length; i++) {
+                            ibi[i] = IBI;
+                            check_first = 0;
+                        }
+                    }
+
+                    pulse_check[0] = pulse_check[1];
+                    pulse_check[1] = pulse_check[2];
+                    pulse_check[2] = Float.valueOf(readMessage);
+                    if( check_first != 0 )
+                    {
+                        if( (pulse_check[1] > 65) &&  (pulse_check[1]>pulse_check[0]) && (pulse_check[1] > pulse_check[2])) // peak detection and threshHold check
+                        {
+
+                            ibi[0] = ibi[1];
+                            ibi[1] = ibi[2];
+                            ibi[2] = ibi[3];
+                            ibi[3] = time;
+                            time=0;
+
+                            IBI_total = (ibi[0] + ibi[1] + ibi[2] + ibi[3])/4;
+
+                            txtBuffer.setText(Float.toString(IBI_total));
+
+
+                        }
+                    }
+
+
+                        sdata += readMessage+" ";
 
 
                 }
