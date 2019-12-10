@@ -23,10 +23,12 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -47,6 +49,10 @@ public class MainActivity extends AppCompatActivity {
     private TextView txtBPM;
     private TextView txtBuffer;
 
+    private ImageView imgHeart;
+    private ImageView imgBell;
+    int heart = 0;
+    int bell = 0;
     private Button btnFile;
     private Button btnOn;
     private Button btnOff;
@@ -59,13 +65,14 @@ public class MainActivity extends AppCompatActivity {
     private CheckBox checkBox_noti;
     //Data process
     String sdata = ""; // Container data from hc06
+    String ibitotal = "";
     Double Fs = 12.0;
     Double Ts = 1 / Fs;
     int check_first = 1;
-    float[] ibi = new float[4];
+    float[] ibi = new float[16];
     float[] pulse_check = new float[3];
-    float IBI = 10;
-    float IBI_total = 10;
+    float IBI = 7;
+    double IBI_total = 10;
     int time = 0;
     int lastTimeBeat = 0;
     int N = 0;
@@ -89,6 +96,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        imgHeart = (ImageView) findViewById(R.id.iv_heart);
+        imgBell  = (ImageView) findViewById(R.id.iv_bell);
         btnFile = (Button) findViewById(R.id.buttonFile);
         txtStatus = (TextView)findViewById(R.id.checkBox_notifi);
         txtStatus.setTextSize(10);
@@ -141,8 +150,16 @@ public class MainActivity extends AppCompatActivity {
                     //int a = Integer.valueOf(readMessage);
                     //for(int i=1; i<1000; i++)
 
+                    // Fs = 4 samples / s
                     time++;
-                    if(time > 4000) time = 0; // reset avoid huge value
+                    if(time > 20) {
+                        txtBPM.setTextSize(40);
+                        txtBPM.setText("\n  -");
+                        check_first = 1;
+                        IBI_total = 75.0;
+                        time = 0; // reset avoid huge value
+                    }
+
                     if(check_first == 1) {
                         pulse_check[0]=0;
                         pulse_check[1]=0;
@@ -155,28 +172,41 @@ public class MainActivity extends AppCompatActivity {
 
                     pulse_check[0] = pulse_check[1];
                     pulse_check[1] = pulse_check[2];
-                    pulse_check[2] = Float.valueOf(readMessage);
-                    if( check_first != 0 )
+                    pulse_check[2] = Float.parseFloat(stripNonDigits(readMessage));
+                    if( check_first == 0 && time>IBI*2/3 )
                     {
-                        if( (pulse_check[1] > 65) &&  (pulse_check[1]>pulse_check[0]) && (pulse_check[1] > pulse_check[2])) // peak detection and threshHold check
+                        if( (pulse_check[1] > 65) &&  ( ((pulse_check[1]>pulse_check[0]) && (pulse_check[1] > pulse_check[2]))  || (pulse_check[1] == pulse_check[0]))) // peak detection and threshHold check
                         {
 
                             ibi[0] = ibi[1];
                             ibi[1] = ibi[2];
                             ibi[2] = ibi[3];
-                            ibi[3] = time;
+                            ibi[3] = ibi[4];
+                            ibi[4] = ibi[5];
+                            ibi[5] = ibi[6];
+                            ibi[6] = ibi[7];
+                            ibi[7] = ibi[8];
+                            ibi[8] = ibi[9];
+
+                            ibi[9] = ibi[10];
+                            ibi[10] = ibi[11];
+                            ibi[11] = ibi[12];
+                            ibi[12] = ibi[13];
+                            ibi[13] = ibi[14];
+                            ibi[14] = ibi[15];
+                            ibi[15] = time;
                             time=0;
 
-                            IBI_total = (ibi[0] + ibi[1] + ibi[2] + ibi[3])/4;
+                            IBI_total = (ibi[0] + ibi[1] + ibi[2] + ibi[3]+ibi[4]+ibi[5] + ibi[6] + ibi[7] + ibi[8]+ibi[9] +ibi[10] + ibi[11] + ibi[12] + ibi[13]+ibi[14]+ibi[15])*0.0625;
 
-                            txtBuffer.setText(Float.toString(IBI_total));
+                            txtBuffer.setText(Double.toString(IBI_total));
+                            txtBPM.setText( Integer.toString((int) Math.round(IBI_total*8.7777)) );
 
 
                         }
                     }
-
-
-                        sdata += readMessage+" ";
+                        ibitotal+= Double.toString(IBI_total) + "\n";
+                        //sdata += stripNonDigits(readMessage)+"\n";
 
 
                 }
@@ -197,11 +227,49 @@ public class MainActivity extends AppCompatActivity {
         }
         else {
 
+            imgHeart.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if(heart == 0) {    // First tap on heart to turn LED on
+                        mConnectedThread.write("1");
+                        heart=1;
+                    }
+                    else if(heart == 1)
+                    {                   // Second tap to turn off
+                        mConnectedThread.write("0");
+                        heart = 0;
+
+                    }
+
+                }
+            });
+
+            imgBell.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if(bell == 0) {    // First tap on heart to turn LED on
+                        mConnectedThread.write("4");
+                        bell=1;
+                    }
+                    else if(bell == 1)
+                    {                   // Second tap to turn off
+                        mConnectedThread.write("5");
+                        bell = 0;
+
+                    }
+                }
+            });
+
+
             checkBox_noti.setOnClickListener(new View.OnClickListener(){
                 @Override
                 public void onClick(View v){
                     if(mConnectedThread != null)        //First check to make sure thread created
-                        mConnectedThread.write("1");
+                    mConnectedThread.write("2");    // Check box to turn LED mode on
+                    if(!checkBox_noti.isChecked())
+                    mConnectedThread.write("3");       // Uncheck to Turn off LED_mode
+                        heart =0;
+
                 }
             });
 
@@ -250,7 +318,8 @@ public class MainActivity extends AppCompatActivity {
                     btnFile.setTextSize(20);
                     btnSeek.setTextSize(12);
                     btn_pair.setTextSize(12);
-                    writeTofile("hc06_", sdata);
+                    writeTofile("data", sdata);
+                    writeTofile("ibitotal", ibitotal);
                 }
             });
 
@@ -269,14 +338,37 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void BPM(String string)
+    public  static double median(final int[] array)
     {
+        int sum = 0;
+        for( int i=0; i< array.length; i++) sum += array[i];
+        double kq;
+        kq = sum/array.length;
+        return kq;
 
-        //for(int i=0; i<string.length(); i++) if (string[i] > 97);
 
     }
 
-    private void bluetoothOn(View view){
+
+    public static String stripNonDigits( final CharSequence input ) {
+        int dem = 0;
+        final StringBuilder sb = new StringBuilder( input.length());
+        for (int i = 0; i < input.length(); i++)
+        {
+            final char c = input.charAt(i);
+            if(dem < 5)
+                if ((c > 47 && c < 58) || c == '.')
+                {
+                    dem++;
+                    sb.append(c);
+                }
+
+        }
+        return sb.toString();
+    }
+
+
+        private void bluetoothOn(View view){
         if (!mBTAdapter.isEnabled()) {  // if BT not open yet
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE); // generate request Enable BT
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT); // send request
@@ -442,6 +534,15 @@ public class MainActivity extends AppCompatActivity {
             mmInStream = tmpIn;
             mmOutStream = tmpOut;
         }
+//        public  char receiveData(BluetoothSocket socket) throws IOException{
+//            byte[] buffer = new byte[1];
+//            ByteArrayInputStream input = new ByteArrayInputStream(buffer);
+//            InputStream inputStream = socket.getInputStream();
+//            inputStream.read(buffer);
+//            return (char) input.read();
+//
+//
+//        }
 
         public void run() {
             byte[] buffer = new byte[1024];  // buffer store for the stream
@@ -487,7 +588,7 @@ public class MainActivity extends AppCompatActivity {
     public void writeTofile(String fileName, String data)
     {
 
-        final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/SenData_/" );
+        final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/bhealth_/" );
 
         //Toast.makeText(getApplicationContext(),"File 1:" +path.toString(),Toast.LENGTH_LONG).show();
         if(!path.exists())
