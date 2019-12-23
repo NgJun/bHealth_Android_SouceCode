@@ -205,7 +205,7 @@ public class MainActivity extends AppCompatActivity {
 
                         }
                     }
-                        ibitotal+= Double.toString(IBI_total) + "\n";
+                        //ibitotal+= Double.toString(IBI_total) + "\n";
                         //sdata += stripNonDigits(readMessage)+"\n";
 
 
@@ -266,6 +266,7 @@ public class MainActivity extends AppCompatActivity {
                 public void onClick(View v){
                     if(mConnectedThread != null)        //First check to make sure thread created
                     mConnectedThread.write("2");    // Check box to turn LED mode on
+
                     if(!checkBox_noti.isChecked())
                     mConnectedThread.write("3");       // Uncheck to Turn off LED_mode
                         heart =0;
